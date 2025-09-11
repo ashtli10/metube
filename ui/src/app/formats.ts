@@ -81,4 +81,28 @@ export const Formats: Format[] = [
     text: 'Thumbnail',
     qualities: [{ id: 'best', text: 'Best' }],
   },
+  {
+    id: 'mp4_subs',
+    text: 'MP4 + Embedded Subs',
+    qualities: [
+      { id: 'best', text: 'Best' },
+      { id: 'best_ios', text: 'Best (iOS)' },
+      { id: '1080', text: '1080p' },
+      { id: '720', text: '720p' },
+      { id: '480', text: '480p' },
+      { id: '360', text: '360p' },
+    ],
+  },
+  {
+    id: 'any_subs',
+    text: 'Any + External Subs',
+    qualities: [
+      { id: 'best', text: 'Best' },
+      { id: '1080', text: '1080p' },
+      { id: '720', text: '720p' },
+      { id: '480', text: '480p' },
+      { id: '360', text: '360p' },
+      { id: 'audio', text: 'Audio Only' },
+    ],
+  },
 ];

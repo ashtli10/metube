@@ -26,6 +26,23 @@ def get_format(format: str, quality: str) -> str:
         # Quality is irrelevant in this case since we skip the download
         return "bestaudio/best"
 
+    if format in ("mp4_subs", "any_subs"):
+        # Subtitle formats - use same logic as mp4/any but with subtitle options added later
+        if format == "mp4_subs":
+            if quality == "audio":
+                return "bestaudio/best"
+            vfmt, afmt = ("[ext=mp4]", "[ext=m4a]")
+            vres = f"[height<={quality}]" if quality not in ("best", "best_ios", "worst") else ""
+            vcombo = vres + vfmt
+            if quality == "best_ios":
+                return f"bestvideo[vcodec~='^((he|a)vc|h26[45])']{vfmt}+bestaudio[acodec=aac]/bestvideo[vcodec~='^((he|a)vc|h26[45])']{vfmt}+bestaudio{afmt}/bestvideo{vcombo}+bestaudio{afmt}/best{vcombo}"
+            return f"bestvideo{vcombo}+bestaudio{afmt}/best{vcombo}"
+        else:  # any_subs
+            if quality == "audio":
+                return "bestaudio/best"
+            vres = f"[height<={quality}]" if quality not in ("best", "worst") else ""
+            return f"bestvideo{vres}+bestaudio/best{vres}"
+
     if format in AUDIO_FORMATS:
         # Audio quality needs to be set post-download, set in opts
         return f"bestaudio[ext={format}]/bestaudio/best"
@@ -68,6 +85,20 @@ def get_opts(format: str, quality: str, ytdl_opts: dict) -> dict:
     opts = copy.deepcopy(ytdl_opts)
 
     postprocessors = []
+
+    # Handle subtitle formats
+    if format in ("mp4_subs", "any_subs"):
+        # Enable subtitle download
+        opts["writesubtitles"] = True
+        opts["writeautomaticsub"] = True
+        
+        # Set subtitle languages (prefer English, fallback to all available)
+        opts["subtitleslangs"] = ["en", "en-US", "en-GB", "all"]
+        opts["subtitlesformat"] = "srt/best"
+        
+        # For mp4_subs, embed subtitles into the video file
+        if format == "mp4_subs":
+            opts["embedsubtitles"] = True
 
     if format in AUDIO_FORMATS:
         postprocessors.append(

@@ -67,6 +67,10 @@ class Download:
 
     def _download(self):
         log.info(f"Starting download for: {self.info.title} ({self.info.url})")
+        
+        # Check if this is a subtitle format
+        is_subtitle_format = hasattr(self.info, 'format') and self.info.format in ('mp4_subs', 'any_subs')
+        
         try:
             def put_status(st):
                 self.status_queue.put({k: v for k, v in st.items() if k in (
@@ -105,7 +109,36 @@ class Download:
             log.info(f"Finished download for: {self.info.title}")
         except yt_dlp.utils.YoutubeDLError as exc:
             log.error(f"Download error for {self.info.title}: {str(exc)}")
-            self.status_queue.put({'status': 'error', 'msg': str(exc)})
+            
+            # If subtitle download failed, try fallback to normal download
+            if is_subtitle_format and "subtitle" in str(exc).lower():
+                log.warning(f"Subtitle download failed for {self.info.title}, falling back to normal download")
+                try:
+                    # Create fallback options without subtitle settings
+                    fallback_opts = {k: v for k, v in self.ytdl_opts.items() 
+                                   if k not in ('writesubtitles', 'writeautomaticsub', 'embedsubtitles', 'subtitleslangs', 'subtitlesformat')}
+                    
+                    ret = yt_dlp.YoutubeDL(params={
+                        'quiet': True,
+                        'no_color': True,
+                        'paths': {"home": self.download_dir, "temp": self.temp_dir},
+                        'outtmpl': { "default": self.output_template, "chapter": self.output_template_chapter },
+                        'format': self.format,
+                        'socket_timeout': 30,
+                        'ignore_no_formats_error': True,
+                        'progress_hooks': [put_status],
+                        'postprocessor_hooks': [put_status_postprocessor],
+                        **fallback_opts,
+                    }).download([self.info.url])
+                    
+                    fallback_msg = f"Subtitles unavailable, downloaded without subtitles: {str(exc)}"
+                    self.status_queue.put({'status': 'finished' if ret == 0 else 'error', 'msg': fallback_msg})
+                    log.info(f"Fallback download completed for: {self.info.title}")
+                except yt_dlp.utils.YoutubeDLError as fallback_exc:
+                    log.error(f"Fallback download also failed for {self.info.title}: {str(fallback_exc)}")
+                    self.status_queue.put({'status': 'error', 'msg': str(fallback_exc)})
+            else:
+                self.status_queue.put({'status': 'error', 'msg': str(exc)})
 
     async def start(self, notifier):
         log.info(f"Preparing download for: {self.info.title}")
