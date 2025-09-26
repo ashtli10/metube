@@ -111,7 +111,7 @@ class Download:
             log.error(f"Download error for {self.info.title}: {str(exc)}")
             
             # If subtitle download failed, try fallback to normal download
-            if is_subtitle_format and "subtitle" in str(exc).lower():
+            if is_subtitle_format:
                 log.warning(f"Subtitle download failed for {self.info.title}, falling back to normal download")
                 try:
                     # Create fallback options without subtitle settings
